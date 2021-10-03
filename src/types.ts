@@ -8,3 +8,8 @@ export type connectedClient = {
   device: string;
   room: string;
 };
+
+export type fileRequest = {
+  device: string;
+  path: string;
+};

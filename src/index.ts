@@ -1,7 +1,8 @@
 import express from 'express';
 import { createServer } from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
-import { connectedClient, roomJoinData } from './types';
+import { connectedClient, fileRequest, roomJoinData } from './types';
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,12 +24,12 @@ const removeClient = (clientID: string) => {
 app.use(express.static('src/frontend'));
 
 app.get('/', (_, res) => {
-  res.sendFile(__dirname + '/frontend/index.html');
+  res.sendFile(path.join(__dirname, '/frontend/index.html'));
 });
 
 io.on('connection', (socket) => {
   console.log('a user connected', socket.id);
-  io.to(socket.id).emit('welcome', 'welcome');
+
   socket.on('joinRoom', (msg: roomJoinData) => {
     socket.join(msg.room);
     addClient({
@@ -40,15 +41,35 @@ io.on('connection', (socket) => {
       io.to(client.id).emit('clients', clients);
     });
   });
-  socket.on('request', (clientID: string) => {
-    io.to(clientID).emit('request');
+
+  socket.on('request', (msg: fileRequest) => {
+    io.to(msg.device).emit('request', msg.path);
   });
+
+  socket.on('readfile', (msg: fileRequest) => {
+    io.to(msg.device).emit('readfile', msg.path);
+  });
+
   socket.on('respond', (res: any) => {
-    console.log(res);
+    const browserClient = clients.find((client) => client.device === 'browser');
+    if (browserClient) {
+      io.to(browserClient.id).emit('respond', res);
+    }
   });
+
+  socket.on('respondfile', (res: any) => {
+    const browserClient = clients.find((client) => client.device === 'browser');
+    if (browserClient) {
+      io.to(browserClient.id).emit('respondfile', res);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('a user disconnected', socket.id);
     removeClient(socket.id);
+    clients.forEach((client) => {
+      io.to(client.id).emit('clients', clients);
+    });
   });
 });
 
