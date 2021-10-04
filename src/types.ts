@@ -12,4 +12,5 @@ export type connectedClient = {
 export type fileRequest = {
   device: string;
   path: string;
+  basedir: string;
 };

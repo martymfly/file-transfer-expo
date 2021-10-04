@@ -43,11 +43,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('request', (msg: fileRequest) => {
-    io.to(msg.device).emit('request', msg.path);
+    io.to(msg.device).emit('request', msg);
   });
 
   socket.on('readfile', (msg: fileRequest) => {
-    io.to(msg.device).emit('readfile', msg.path);
+    io.to(msg.device).emit('readfile', msg);
+    console.log(msg);
   });
 
   socket.on('respond', (res: any) => {

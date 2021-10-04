@@ -1,5 +1,7 @@
 const e = React.createElement;
 
+const socket = io();
+
 const {
   colors,
   CssBaseline,
@@ -21,6 +23,10 @@ const {
   DraftsIcon,
   Icon,
   Modal,
+  Skeleton,
+  Breadcrumbs,
+  IconButton,
+  Grid,
 } = MaterialUI;
 
 const theme = createTheme({
@@ -35,160 +41,294 @@ const theme = createTheme({
       main: colors.red.A400,
     },
   },
+  components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          scrollbarColor: '#5a88e3b0 #2b2b2b',
+          '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
+            backgroundColor: '#dee3e5',
+            borderRadius: 8,
+          },
+          '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
+            borderRadius: 8,
+            backgroundColor: '#5a88e3b0',
+            minHeight: 24,
+          },
+          '&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus':
+            {
+              backgroundColor: '#5a88e3',
+            },
+          '&::-webkit-scrollbar-thumb:active, & *::-webkit-scrollbar-thumb:active':
+            {
+              backgroundColor: '#5a88e3',
+            },
+          '&::-webkit-scrollbar-thumb:hover, & *::-webkit-scrollbar-thumb:hover':
+            {
+              backgroundColor: '#5a88e3',
+            },
+          '&::-webkit-scrollbar-corner, & *::-webkit-scrollbar-corner': {
+            backgroundColor: '#dee3e5',
+          },
+        },
+      },
+    },
+    Link: {
+      styleOverrides: {
+        root: {
+          cursor: 'pointer',
+        },
+      },
+    },
+  },
 });
 
 const Main = () => {
-  const [socket, setSocket] = React.useState(io());
   const [roomID, setRoomID] = React.useState('');
-  const [connected, setConnected] = React.useState(false);
   const [phoneClient, setPhoneClient] = React.useState(null);
-  const [path, setPath] = React.useState('');
+  const [path, setPath] = React.useState([]);
   const [files, setFiles] = React.useState([]);
-  const [imageURI, setImageURI] = React.useState('');
+  const [imageURI, setImageURI] = React.useState(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const fileChunk = React.useRef('data:image/png;base64,');
+  const [baseDir, setBaseDir] = React.useState('docdir');
 
   React.useEffect(() => {
     if (socket) {
       socket.on('clients', (data) => {
         const phoneClient = data.find((client) => client.device === 'phone');
         setPhoneClient(phoneClient);
-        requestFiles(phoneClient, path);
+        requestFiles(phoneClient, path, baseDir);
       });
 
       socket.on('respond', (data) => {
-        console.log(data);
         setFiles(data.files);
-        setPath(data.path);
       });
 
       socket.on('respondfile', (data) => {
         fileChunk.current += data.file;
         if (fileChunk.current.length === data.size + 22) {
-          //setImage(fileChunk.current);
-          console.log(fileChunk.current.length);
           fetch(fileChunk.current)
             .then((res) => res.blob())
             .then((data) => {
               const objectURL = URL.createObjectURL(data);
               setImageURI(objectURL);
-              setModalOpen(true);
             });
         }
       });
     }
   }, [socket]);
 
-  const requestFiles = (phoneClient, path) => {
+  const requestFiles = (phoneClient, path, basedir) => {
     if (socket && phoneClient) {
-      socket.emit('request', { device: phoneClient.id, path });
+      socket.emit('request', { device: phoneClient.id, path, basedir });
     }
   };
 
   const readFile = (path) => {
+    setModalOpen(true);
     fileChunk.current = 'data:image/png;base64,';
     if (socket && phoneClient) {
-      socket.emit('readfile', { device: phoneClient.id, path });
-    }
-  };
-
-  const navigateUpFolder = () => {
-    if (
-      path.endsWith('expo-file-manager/') ||
-      path.endsWith('expo-file-manager')
-    ) {
-      return;
-    } else {
-      setPath((prev) => {
-        let newPath = prev.split('/');
-        newPath.splice(-1);
-        newPath = newPath.join('/');
-        requestFiles(phoneClient, newPath);
-        return newPath;
+      socket.emit('readfile', {
+        device: phoneClient.id,
+        path,
+        basedir: baseDir,
       });
     }
   };
 
+  const navigateUpFolder = () => {
+    if (path.length === 0) return;
+    const currentPath = path;
+    currentPath.splice(-1);
+    requestFiles(phoneClient, currentPath.join('/'), baseDir);
+    setPath((_) => currentPath);
+  };
+
+  const handleNavigation = (file) => {
+    if (file.isDirectory) {
+      const requestPath = path.join('/');
+      requestFiles(phoneClient, requestPath + '/' + file.name, baseDir);
+      setPath((prev) => [...prev, file.name]);
+    } else {
+      readFile(path.join('/') + '/' + file.name);
+    }
+  };
+
+  const handleBreadcrumbLink = (index) => {
+    if (index === -1) {
+      requestFiles(phoneClient, '', baseDir);
+      setPath([]);
+      return;
+    }
+    requestFiles(phoneClient, path.slice(0, index + 1).join('/'), baseDir);
+    setPath((_) => path.slice(0, index + 1));
+  };
+
+  const handleBaseDir = (dir) => {
+    setPath([]);
+    requestFiles(phoneClient, '', dir);
+    setBaseDir(dir);
+  };
+
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="md">
+      {baseDir}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setImageURI(null);
+        }}
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
         <Box sx={modalStyle}>
-          <img
-            style={{ height: '100%', width: '100%', resizeMode: 'cover' }}
-            src={imageURI}
-            loading="lazy"
-          />
+          {!imageURI ? (
+            <Skeleton variant="rectangular" width={'100%'} height={'100%'} />
+          ) : (
+            <img
+              style={{ height: '100%', resizeMode: 'cover' }}
+              src={imageURI}
+              loading="lazy"
+            />
+          )}
         </Box>
       </Modal>
-      <Box
-        sx={{
-          my: 4,
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        <TextField
-          id="standard-basic"
-          label="Room ID"
-          variant="standard"
-          onChange={(e) => {
-            setRoomID(e.target.value);
-          }}
-          value={roomID}
-        />
-        <Button
-          variant="outlined"
-          onClick={() => {
-            socket.emit('joinRoom', { room: roomID, device: 'browser' });
-          }}
-        >
-          Join
-        </Button>
-      </Box>
-      <Button variant="outlined" onClick={() => navigateUpFolder()}>
-        Back
-      </Button>
-      <Box
-        sx={{
-          width: '100%',
-          height: 500,
-          overflow: 'scroll',
-        }}
-      >
-        <List>
-          {files.map((file, index) => (
-            <ListItem
-              key={index}
-              disablePadding
-              onClick={() => {
-                if (file.isDirectory) {
-                  requestFiles(phoneClient, path + '/' + file.name);
-                } else {
-                  readFile(path + '/' + file.name);
-                }
+      <Grid container spacing={2}>
+        <Grid item xs={3}>
+          <Box
+            sx={{
+              paddingTop: 12,
+            }}
+          >
+            <List>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => handleBaseDir('docdir')}>
+                  <ListItemIcon>
+                    <Icon>home</Icon>
+                  </ListItemIcon>
+                  <ListItemText primary="Document Directory" />
+                </ListItemButton>
+              </ListItem>
+              <ListItem disablePadding>
+                <ListItemButton onClick={() => handleBaseDir('cachedir')}>
+                  <ListItemIcon>
+                    <Icon>archive</Icon>
+                  </ListItemIcon>
+                  <ListItemText primary="Cache Directory" />
+                </ListItemButton>
+              </ListItem>
+            </List>
+          </Box>
+        </Grid>
+        <Grid item xs={9}>
+          <Box>
+            <Box
+              sx={{
+                my: 1,
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'flex-start',
+                paddingLeft: 1,
               }}
             >
-              <ListItemButton>
-                <ListItemIcon>
-                  <Icon>
-                    {file.isDirectory ? 'folder_open' : 'insert_drive_file'}
-                  </Icon>
-                </ListItemIcon>
-                <ListItemText
-                  primary={file.name}
-                  secondary={humanFileSize(file.size)}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Box>
+              <TextField
+                id="standard-basic"
+                label="Room ID"
+                variant="standard"
+                onChange={(e) => {
+                  setRoomID(e.target.value);
+                }}
+                value={roomID}
+              />
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  socket.emit('joinRoom', { room: roomID, device: 'browser' });
+                }}
+              >
+                Join
+              </Button>
+            </Box>
+            <Box
+              sx={{
+                width: '100%',
+                height: 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+              }}
+            >
+              <IconButton
+                color="primary"
+                aria-label="go back"
+                component="span"
+                onClick={() => navigateUpFolder()}
+              >
+                <Icon>subdirectory_arrow_left</Icon>
+              </IconButton>
+              <Breadcrumbs
+                separator={<Icon>chevron_right</Icon>}
+                aria-label="breadcrumb"
+              >
+                <Link
+                  component="button"
+                  underline="hover"
+                  key="1"
+                  color="inherit"
+                  onClick={() => handleBreadcrumbLink(-1)}
+                >
+                  Home
+                </Link>
+                {path.map((pathItem, index) => (
+                  <Link
+                    component="button"
+                    underline="hover"
+                    key="1"
+                    color="inherit"
+                    onClick={() => handleBreadcrumbLink(index)}
+                  >
+                    {pathItem}
+                  </Link>
+                ))}
+              </Breadcrumbs>
+            </Box>
+            <Box
+              sx={{
+                width: '100%',
+                height: 500,
+                overflow: 'scroll',
+                overflowX: 'hidden',
+              }}
+            >
+              <List>
+                {files.map((file, index) => (
+                  <ListItem
+                    key={index}
+                    disablePadding
+                    onClick={() => handleNavigation(file)}
+                  >
+                    <ListItemButton>
+                      <ListItemIcon>
+                        <Icon>
+                          {file.isDirectory
+                            ? 'folder_open'
+                            : 'insert_drive_file'}
+                        </Icon>
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={file.name}
+                        secondary={humanFileSize(file.size)}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </Box>
+        </Grid>
+      </Grid>
     </Container>
   );
 };
