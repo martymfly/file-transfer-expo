@@ -1,18 +1,34 @@
 import express from 'express';
-import { createServer } from 'http';
 import path from 'path';
+import ip from 'ip';
+import QRCode from 'qrcode';
+import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { connectedClient, fileRequest, roomJoinData } from './types';
+
+const generateUrlQR = () => {
+  const localIP: string = ip.address();
+  QRCode.toFile('src/frontend/qr.png', `http://${localIP}:3000`);
+};
+
+generateUrlQR();
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {});
-const clients: connectedClient[] = [];
+let clients: connectedClient[] = [];
 
 const addClient = (data: connectedClient) => {
   const exists = clients.findIndex((item) => item.id === data.id);
   if (exists === -1) {
     clients.push(data);
+  } else {
+    clients = clients.map((client) => {
+      if (client.id === data.id) {
+        const clientRoomUpdated = { ...client, room: data.room };
+        return clientRoomUpdated;
+      } else return client;
+    });
   }
 };
 
@@ -37,8 +53,10 @@ io.on('connection', (socket) => {
       room: msg.room,
       device: msg.device,
     });
-    clients.forEach((client) => {
-      io.to(client.id).emit('clients', clients);
+    const commonClients = clients.filter((client) => client.room === msg.room);
+
+    commonClients.forEach((client) => {
+      io.to(client.id).emit('clients', commonClients);
     });
   });
 
@@ -48,7 +66,6 @@ io.on('connection', (socket) => {
 
   socket.on('readfile', (msg: fileRequest) => {
     io.to(msg.device).emit('readfile', msg);
-    console.log(msg);
   });
 
   socket.on('respond', (res: any) => {

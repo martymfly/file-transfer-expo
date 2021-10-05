@@ -172,8 +172,7 @@ const Main = () => {
   };
 
   return (
-    <Container maxWidth="md">
-      {baseDir}
+    <Container maxWidth="md" sx={{ display: 'flex' }}>
       <Modal
         open={modalOpen}
         onClose={() => {
@@ -200,26 +199,44 @@ const Main = () => {
           <Box
             sx={{
               paddingTop: 12,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
-            <List>
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => handleBaseDir('docdir')}>
-                  <ListItemIcon>
-                    <Icon>home</Icon>
-                  </ListItemIcon>
-                  <ListItemText primary="Document Directory" />
-                </ListItemButton>
-              </ListItem>
-              <ListItem disablePadding>
-                <ListItemButton onClick={() => handleBaseDir('cachedir')}>
-                  <ListItemIcon>
-                    <Icon>archive</Icon>
-                  </ListItemIcon>
-                  <ListItemText primary="Cache Directory" />
-                </ListItemButton>
-              </ListItem>
-            </List>
+            <div>
+              <List>
+                <ListItem disablePadding>
+                  <ListItemButton onClick={() => handleBaseDir('docdir')}>
+                    <ListItemIcon>
+                      <Icon>home</Icon>
+                    </ListItemIcon>
+                    <ListItemText primary="Document Directory" />
+                  </ListItemButton>
+                </ListItem>
+                <ListItem disablePadding>
+                  <ListItemButton onClick={() => handleBaseDir('cachedir')}>
+                    <ListItemIcon>
+                      <Icon>archive</Icon>
+                    </ListItemIcon>
+                    <ListItemText primary="Cache Directory" />
+                  </ListItemButton>
+                </ListItem>
+              </List>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span>Server IP</span>
+              <img src="qr.png" />
+            </div>
           </Box>
         </Grid>
         <Grid item xs={9}>
