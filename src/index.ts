@@ -4,7 +4,12 @@ import ip from 'ip';
 import QRCode from 'qrcode';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { connectedClient, fileRequest, roomJoinData } from './types';
+import {
+  connectedClient,
+  fileRequest,
+  newFolderRequest,
+  roomJoinData,
+} from './types';
 
 const generateUrlQR = () => {
   const localIP: string = ip.address();
@@ -80,6 +85,10 @@ io.on('connection', (socket) => {
     if (browserClient) {
       io.to(browserClient.id).emit('respondfile', res);
     }
+  });
+
+  socket.on('newfolder', (msg: newFolderRequest) => {
+    io.to(msg.device).emit('newfolder', msg);
   });
 
   socket.on('disconnect', () => {

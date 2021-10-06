@@ -27,6 +27,7 @@ const {
   Breadcrumbs,
   IconButton,
   Grid,
+  Input,
 } = MaterialUI;
 
 const theme = createTheme({
@@ -90,6 +91,8 @@ const Main = () => {
   const [files, setFiles] = React.useState([]);
   const [imageURI, setImageURI] = React.useState(null);
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [newFolderDialogOpen, setNewFolderDialogOpen] = React.useState(false);
+  const [newFolderName, setNewFolderName] = React.useState('');
   const fileChunk = React.useRef('data:image/png;base64,');
   const [baseDir, setBaseDir] = React.useState('docdir');
 
@@ -171,16 +174,27 @@ const Main = () => {
     setBaseDir(dir);
   };
 
+  const addNewFolder = () => {
+    socket.emit('newfolder', {
+      device: phoneClient.id,
+      name: newFolderName,
+      path: path.join('/'),
+    });
+    setNewFolderDialogOpen(false);
+    socket.emit('request', { device: phoneClient.id, path, basedir });
+  };
+
   return (
     <Container maxWidth="md" sx={{ display: 'flex' }}>
+      {/* IMAGE VIEW MODAL */}
       <Modal
         open={modalOpen}
         onClose={() => {
           setModalOpen(false);
           setImageURI(null);
         }}
-        aria-labelledby="modal-modal-title"
-        aria-describedby="modal-modal-description"
+        aria-labelledby="image-preview-modal"
+        aria-describedby="image-preview-modal"
       >
         <Box sx={modalStyle}>
           {!imageURI ? (
@@ -192,6 +206,30 @@ const Main = () => {
               loading="lazy"
             />
           )}
+        </Box>
+      </Modal>
+      {/* NEW FOLDER DIALOG */}
+      <Modal
+        open={newFolderDialogOpen}
+        onClose={() => {
+          setNewFolderDialogOpen(false);
+        }}
+        aria-labelledby="new-folder-dialog"
+        aria-describedby="new-folder-dialog"
+      >
+        <Box sx={newFolderDialogStyle}>
+          <TextField
+            id="standard-basic"
+            label="Folder Name"
+            variant="standard"
+            onChange={(e) => {
+              setNewFolderName(e.target.value);
+            }}
+            value={newFolderName}
+          />
+          <Button variant="outlined" onClick={addNewFolder}>
+            Add
+          </Button>
         </Box>
       </Modal>
       <Grid container spacing={2}>
@@ -267,6 +305,41 @@ const Main = () => {
               >
                 Join
               </Button>
+              <Box
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  paddingLeft: 1,
+                }}
+              >
+                <IconButton
+                  color="primary"
+                  aria-label="go back"
+                  component="span"
+                  onClick={() => setNewFolderDialogOpen(true)}
+                >
+                  <Icon sx={{ fontSize: 32 }}>create_new_folder</Icon>
+                </IconButton>
+                <label htmlFor="icon-button-file">
+                  <Input
+                    onChange={(e) => console.log(e)}
+                    style={{ display: 'none' }}
+                    accept="image/*"
+                    id="icon-button-file"
+                    type="file"
+                  />
+                  <IconButton
+                    color="primary"
+                    aria-label="go back"
+                    component="span"
+                  >
+                    <Icon sx={{ fontSize: 32 }}>upload_file</Icon>
+                  </IconButton>
+                </label>
+              </Box>
             </Box>
             <Box
               sx={{
@@ -306,7 +379,7 @@ const Main = () => {
                     color="inherit"
                     onClick={() => handleBreadcrumbLink(index)}
                   >
-                    {pathItem}
+                    {decodeURI(pathItem)}
                   </Link>
                 ))}
               </Breadcrumbs>
@@ -335,7 +408,7 @@ const Main = () => {
                         </Icon>
                       </ListItemIcon>
                       <ListItemText
-                        primary={file.name}
+                        primary={decodeURI(file.name)}
                         secondary={humanFileSize(file.size)}
                       />
                     </ListItemButton>
@@ -370,6 +443,22 @@ const modalStyle = {
   width: '80vw',
   maxWidth: '1200px',
   height: '90vh',
+  bgcolor: 'background.paper',
+  border: '2px solid #000',
+  boxShadow: 24,
+  p: 4,
+};
+
+const newFolderDialogStyle = {
+  position: 'absolute',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: 300,
+  height: 100,
   bgcolor: 'background.paper',
   border: '2px solid #000',
   boxShadow: 24,

@@ -14,3 +14,9 @@ export type fileRequest = {
   path: string;
   basedir: string;
 };
+
+export type newFolderRequest = {
+  device: string;
+  name: string;
+  path: string;
+};
