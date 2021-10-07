@@ -145,14 +145,15 @@ const Main = () => {
     }
   };
 
-  const handleFileSubmit = (file) => {
-    const filename = file.name;
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      transferFile(filename, reader.result, 1024 * 100);
-      console.log(reader.result.length);
-    };
+  const handleFileSubmit = (files) => {
+    for (let i = 0; i < files.length; i++) {
+      const filename = files[i].name;
+      const reader = new FileReader();
+      reader.readAsDataURL(files[i]);
+      reader.onload = () => {
+        transferFile(filename, reader.result, 1024 * 100);
+      };
+    }
   };
 
   const transferFile = (filename, fileEncoded, bufferSize) => {
@@ -167,7 +168,22 @@ const Main = () => {
     });
     if (data.length > 0) {
       transferFile(filename, data, bufferSize);
+    } else {
+      requestFiles(phoneClient, path.join('/'), baseDir);
     }
+  };
+
+  const addNewFolder = () => {
+    socket.emit('newfolder', {
+      device: phoneClient.id,
+      name: newFolderName,
+      path: path.join('/'),
+    });
+    setNewFolderDialogOpen(false);
+    setNewFolderName('');
+    setTimeout(() => {
+      requestFiles(phoneClient, path.join('/'), baseDir);
+    }, 100);
   };
 
   const navigateUpFolder = () => {
@@ -202,19 +218,6 @@ const Main = () => {
     setPath([]);
     requestFiles(phoneClient, '', dir);
     setBaseDir(dir);
-  };
-
-  const addNewFolder = () => {
-    socket.emit('newfolder', {
-      device: phoneClient.id,
-      name: newFolderName,
-      path: path.join('/'),
-    });
-    setNewFolderDialogOpen(false);
-    setNewFolderName('');
-    setTimeout(() => {
-      requestFiles(phoneClient, path.join('/'), baseDir);
-    }, 300);
   };
 
   return (
@@ -252,6 +255,7 @@ const Main = () => {
         open={newFolderDialogOpen}
         onClose={() => {
           setNewFolderDialogOpen(false);
+          setNewFolderName('');
         }}
         aria-labelledby="new-folder-dialog"
         aria-describedby="new-folder-dialog"
@@ -265,6 +269,7 @@ const Main = () => {
               setNewFolderName(e.target.value);
             }}
             value={newFolderName}
+            autoFocus
           />
           <Button variant="outlined" onClick={addNewFolder}>
             Add
@@ -363,12 +368,13 @@ const Main = () => {
                   <Icon sx={{ fontSize: 32 }}>create_new_folder</Icon>
                 </IconButton>
                 <label htmlFor="icon-button-file">
-                  <Input
-                    onChange={(e) => handleFileSubmit(e.target.files[0])}
+                  <input
+                    onChange={(e) => handleFileSubmit(e.target.files)}
                     style={{ display: 'none' }}
                     accept="image/*"
                     id="icon-button-file"
                     type="file"
+                    multiple
                   />
                   <IconButton
                     color="primary"
