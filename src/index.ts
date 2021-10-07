@@ -7,6 +7,7 @@ import { Server } from 'socket.io';
 import {
   connectedClient,
   fileRequest,
+  fileSend,
   newFolderRequest,
   roomJoinData,
 } from './types';
@@ -89,6 +90,11 @@ io.on('connection', (socket) => {
 
   socket.on('newfolder', (msg: newFolderRequest) => {
     io.to(msg.device).emit('newfolder', msg);
+  });
+
+  socket.on('sendfile', (msg: fileSend) => {
+    io.to(msg.device).emit('sendfile', msg);
+    console.log(msg.path);
   });
 
   socket.on('disconnect', () => {

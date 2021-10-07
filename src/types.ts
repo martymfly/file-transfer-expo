@@ -15,6 +15,14 @@ export type fileRequest = {
   basedir: string;
 };
 
+export type fileSend = {
+  name: string;
+  file: string;
+  sizes: string;
+  device: string;
+  path: string;
+};
+
 export type newFolderRequest = {
   device: string;
   name: string;

@@ -101,7 +101,8 @@ const Main = () => {
       socket.on('clients', (data) => {
         const phoneClient = data.find((client) => client.device === 'phone');
         setPhoneClient(phoneClient);
-        requestFiles(phoneClient, path, baseDir);
+        setPath([]);
+        requestFiles(phoneClient, '', baseDir);
       });
 
       socket.on('respond', (data) => {
@@ -124,7 +125,11 @@ const Main = () => {
 
   const requestFiles = (phoneClient, path, basedir) => {
     if (socket && phoneClient) {
-      socket.emit('request', { device: phoneClient.id, path, basedir });
+      socket.emit('request', {
+        device: phoneClient.id,
+        path,
+        basedir,
+      });
     }
   };
 
@@ -137,6 +142,31 @@ const Main = () => {
         path,
         basedir: baseDir,
       });
+    }
+  };
+
+  const handleFileSubmit = (file) => {
+    const filename = file.name;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      transferFile(filename, reader.result, 1024 * 100);
+      console.log(reader.result.length);
+    };
+  };
+
+  const transferFile = (filename, fileEncoded, bufferSize) => {
+    let chunk = fileEncoded.slice(0, bufferSize);
+    let data = fileEncoded.slice(bufferSize, fileEncoded.length);
+    socket.emit('sendfile', {
+      name: filename,
+      file: chunk,
+      size: fileEncoded.length,
+      device: phoneClient.id,
+      path: path.join('/'),
+    });
+    if (data.length > 0) {
+      transferFile(filename, data, bufferSize);
     }
   };
 
@@ -181,7 +211,10 @@ const Main = () => {
       path: path.join('/'),
     });
     setNewFolderDialogOpen(false);
-    socket.emit('request', { device: phoneClient.id, path, basedir });
+    setNewFolderName('');
+    setTimeout(() => {
+      requestFiles(phoneClient, path.join('/'), baseDir);
+    }, 300);
   };
 
   return (
@@ -201,9 +234,15 @@ const Main = () => {
             <Skeleton variant="rectangular" width={'100%'} height={'100%'} />
           ) : (
             <img
-              style={{ height: '100%', resizeMode: 'cover' }}
+              style={{
+                height: '100%',
+                maxHeight: '100%',
+                width: '100%',
+                maxWidth: '100%',
+                resizeMode: 'contain',
+              }}
               src={imageURI}
-              loading="lazy"
+              className="previewImage"
             />
           )}
         </Box>
@@ -325,7 +364,7 @@ const Main = () => {
                 </IconButton>
                 <label htmlFor="icon-button-file">
                   <Input
-                    onChange={(e) => console.log(e)}
+                    onChange={(e) => handleFileSubmit(e.target.files[0])}
                     style={{ display: 'none' }}
                     accept="image/*"
                     id="icon-button-file"
